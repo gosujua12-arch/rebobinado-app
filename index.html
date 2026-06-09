@@ -1,1 +1,1184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rebobinado — Registro de Producción</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&family=Barlow:wght@400;500;600&display=swap');
+:root{
+  --bg:#0d0f18;--sur:#13161f;--card:#181c28;--bor:#252c3f;
+  --gold:#f5a623;--teal:#00d4aa;--blue:#3b82f6;
+  --red:#ef4444;--green:#22c55e;--warn:#f59e0b;
+  --txt:#dde3f0;--mut:#4f5878;--mut2:#7a85a3;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--txt);font-family:'Barlow',sans-serif;font-size:14px;}
 
+/* TOPBAR */
+.topbar{background:var(--sur);border-bottom:3px solid var(--gold);height:52px;
+  padding:0 20px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:300;}
+.logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;
+  letter-spacing:3px;text-transform:uppercase;color:var(--gold);}
+.logo span{color:var(--mut2);font-weight:400;font-size:13px;margin-left:6px;}
+#clock{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;
+  color:var(--teal);letter-spacing:2px;}
+#fecha-txt{font-size:11px;color:var(--mut2);}
+
+/* NAVBAR */
+.nav{background:var(--sur);border-bottom:2px solid var(--gold);
+  display:flex;overflow-x:auto;padding:0 16px;scrollbar-width:none;}
+.nav::-webkit-scrollbar{display:none;}
+.tab{padding:0 16px;height:42px;display:flex;align-items:center;gap:6px;
+  font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;color:var(--mut2);
+  cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;
+  margin-bottom:-2px;transition:all .15s;}
+.tab:hover{color:var(--txt);}
+.tab.on{color:var(--gold);border-bottom-color:var(--gold);}
+
+/* PAGES */
+.pg{display:none;max-width:1060px;margin:0 auto;padding:18px 16px 80px;}
+.pg.on{display:block;}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px;}
+.st{background:var(--card);border:1px solid var(--bor);border-radius:9px;
+  padding:12px;text-align:center;}
+.st .v{font-family:'Barlow Condensed',sans-serif;font-size:30px;font-weight:900;
+  line-height:1;color:var(--gold);}
+.st .l{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--mut);margin-top:3px;}
+.st.teal .v{color:var(--teal);}.st.blue .v{color:var(--blue);}
+.st.green .v{color:var(--green);}.st.red .v{color:var(--red);}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--bor);border-radius:10px;
+  padding:18px 20px;margin-bottom:14px;}
+.ch{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;
+  letter-spacing:3px;text-transform:uppercase;color:var(--gold);
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--bor);}
+.ch .n{background:var(--gold);color:#0d0f18;font-size:10px;font-weight:900;
+  width:18px;height:18px;border-radius:50%;display:inline-flex;
+  align-items:center;justify-content:center;flex-shrink:0;}
+.ch.red-h{color:var(--red);}.ch.red-h .n{background:var(--red);}
+
+/* FORM */
+.fg{display:grid;gap:10px;margin-bottom:10px;}
+.fg.c1{grid-template-columns:1fr;}
+.fg.c2{grid-template-columns:1fr 1fr;}
+.fg.c3{grid-template-columns:1fr 1fr 1fr;}
+.fg.c4{grid-template-columns:1fr 1fr 1fr 1fr;}
+.fl label{display:block;font-size:9px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--mut2);margin-bottom:4px;}
+.fl input,.fl select,.fl textarea{
+  width:100%;background:var(--sur);border:1px solid var(--bor);
+  border-radius:6px;color:var(--txt);font-family:'Barlow',sans-serif;
+  font-size:14px;padding:9px 10px;outline:none;
+  transition:border-color .15s;}
+.fl input:focus,.fl select:focus{border-color:var(--gold);}
+.fl input[readonly]{color:var(--teal);cursor:default;}
+.fl select option{background:var(--sur);}
+.fl textarea{min-height:54px;resize:vertical;}
+
+/* SELECT máquina */
+.maq-wrap{position:relative;}
+.maq-wrap select{appearance:none;-webkit-appearance:none;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;}
+.maq-wrap::after{content:"▼";position:absolute;right:12px;top:50%;
+  transform:translateY(-50%);color:var(--mut2);pointer-events:none;font-size:10px;}
+.maq-wrap select.sel{border-color:var(--gold);color:var(--gold);}
+
+/* OP SEARCH */
+.op-wrap{position:relative;}
+.op-dd{position:absolute;top:calc(100% + 2px);left:0;right:0;z-index:500;
+  background:var(--card);border:1px solid var(--bor);border-radius:8px;
+  max-height:220px;overflow-y:auto;display:none;
+  box-shadow:0 10px 30px rgba(0,0,0,.6);}
+.op-dd.on{display:block;}
+.oi{padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--bor);transition:background .1s;}
+.oi:last-child{border-bottom:none;}
+.oi:hover{background:rgba(245,166,35,.1);}
+.oi-top{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--gold);}
+.oi-sub{font-size:11px;color:var(--mut2);margin-top:1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.no-op{padding:10px 12px;text-align:center;color:var(--mut);font-size:12px;}
+
+/* PANEL INFO OP */
+.op-panel{background:rgba(0,212,170,.05);border:1px solid rgba(0,212,170,.2);
+  border-radius:8px;padding:12px 14px;margin-top:10px;display:none;}
+.op-panel.on{display:block;}
+.op-panel-title{font-size:9px;font-weight:700;letter-spacing:2px;
+  text-transform:uppercase;color:var(--teal);margin-bottom:8px;}
+.op-panel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 16px;}
+.op-kv span{font-size:11px;color:var(--mut2);}
+.op-kv strong{font-size:12px;color:var(--txt);display:block;}
+.op-desc{margin-top:6px;font-size:12px;}
+.op-desc span{color:var(--mut2);}
+.op-desc strong{color:var(--txt);}
+
+/* TURNO badge */
+.turno-disp{background:var(--sur);border:1px solid var(--bor);border-radius:6px;
+  padding:9px 12px;font-family:'Barlow Condensed',sans-serif;font-size:15px;
+  font-weight:700;color:var(--mut2);letter-spacing:2px;}
+.turno-disp.dia{color:var(--blue);border-color:var(--blue);}
+.turno-disp.noche{color:var(--mut2);border-color:rgba(156,163,175,.4);}
+
+/* KPIs parada */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:10px 0;}
+.kpi{background:var(--sur);border:1px solid var(--bor);border-radius:7px;
+  padding:10px;text-align:center;}
+.kpi .kv{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:900;
+  color:var(--teal);line-height:1;}
+.kpi .kl{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--mut);margin-top:2px;}
+.kpi.or .kv{color:var(--gold);}.kpi.gr .kv{color:var(--green);}
+
+/* LIVE BANNER */
+.live{background:rgba(34,197,94,.06);border:1.5px solid rgba(34,197,94,.3);
+  border-radius:9px;padding:12px 16px;margin-bottom:12px;display:none;}
+.live.on{display:flex;align-items:flex-start;gap:12px;}
+.live-dot{width:9px;height:9px;border-radius:50%;background:var(--green);
+  flex-shrink:0;margin-top:4px;animation:pulse 1.4s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6);}
+  70%{box-shadow:0 0 0 8px rgba(34,197,94,0);}
+  100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}
+.live-body{}
+.live-title{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;
+  letter-spacing:2px;text-transform:uppercase;color:var(--green);margin-bottom:5px;}
+.live-info{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;}
+.live-info span{color:var(--mut2);} .live-info strong{color:var(--txt);}
+
+/* BTNS */
+.btn{width:100%;padding:13px;border:none;border-radius:8px;
+  font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;
+  letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+.btn-go{background:var(--green);color:#fff;}
+.btn-go:hover:not(:disabled){background:#16a34a;transform:translateY(-1px);}
+.btn-go:disabled{background:var(--bor);color:var(--mut);cursor:not-allowed;transform:none;}
+.btn-stop{background:var(--red);color:#fff;}
+.btn-stop:hover{background:#dc2626;transform:translateY(-1px);}
+.btn-sm{width:auto;padding:8px 16px;font-size:13px;}
+
+/* TABLA */
+.tbl-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.tbl-label{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
+  letter-spacing:2px;text-transform:uppercase;color:var(--mut2);}
+.btn-xl{background:var(--sur);border:1px solid var(--bor);color:var(--mut2);
+  padding:7px 14px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;
+  font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
+  cursor:pointer;transition:all .15s;}
+.btn-xl:hover{border-color:var(--teal);color:var(--teal);}
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+thead th{background:var(--sur);padding:7px 8px;text-align:left;
+  font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--mut);border-bottom:1px solid var(--bor);white-space:nowrap;}
+tbody tr{border-bottom:1px solid rgba(37,44,63,.7);transition:background .1s;}
+tbody tr:hover{background:rgba(255,255,255,.018);}
+tbody td{padding:7px 8px;white-space:nowrap;}
+.td-op{color:var(--gold);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;}
+.td-teal{color:var(--teal);font-weight:600;}
+.td-n{text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:13px;}
+.td-hl{color:var(--teal);}
+.td-s{color:var(--mut2);font-size:11px;}
+.td-desc{max-width:180px;overflow:hidden;text-overflow:ellipsis;}
+.bdg{display:inline-block;padding:2px 6px;border-radius:3px;
+  font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;}
+.b-dia{background:rgba(59,130,246,.15);color:#60a5fa;}
+.b-noche{background:rgba(107,114,128,.14);color:#9ca3af;}
+.b-ok{background:rgba(34,197,94,.15);color:var(--green);}
+.b-pend{background:rgba(245,158,11,.15);color:var(--warn);}
+.btn-del{background:none;border:none;color:var(--mut);cursor:pointer;
+  padding:3px 6px;border-radius:3px;transition:all .13s;}
+.btn-del:hover{background:rgba(239,68,68,.15);color:var(--red);}
+.empty{text-align:center;padding:30px;color:var(--mut);font-size:13px;}
+
+/* GS STATUS */
+.gs-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:var(--sur);border:1px solid var(--bor);border-radius:7px;
+  margin-bottom:12px;font-size:12px;}
+.gs-dot{width:8px;height:8px;border-radius:50%;background:var(--mut);flex-shrink:0;}
+.gs-dot.ok{background:var(--green);}.gs-dot.err{background:var(--red);}
+.gs-dot.load{background:var(--warn);animation:blink .8s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* TOAST */
+#toast{position:fixed;bottom:20px;right:20px;padding:11px 18px;border-radius:7px;
+  font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;
+  letter-spacing:1px;color:#fff;box-shadow:0 8px 24px rgba(0,0,0,.5);
+  display:none;z-index:999;animation:su .25s ease;}
+@keyframes su{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+.t-ok{background:var(--green);}.t-err{background:var(--red);}.t-warn{background:var(--warn);color:#000;}
+
+@media(max-width:680px){
+  .stats{grid-template-columns:repeat(3,1fr);}
+  .fg.c4,.fg.c3,.fg.c2{grid-template-columns:1fr;}
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .op-panel-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">REBOBINADO<span>Registro de Producción</span></div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span id="fecha-txt"></span>
+    <div id="clock">00:00:00</div>
+  </div>
+</div>
+
+<nav class="nav">
+  <div class="tab on"  data-pg="reg"  onclick="goTab(this)">📋 Registrar</div>
+  <div class="tab"     data-pg="hist" onclick="goTab(this)">📊 Historial</div>
+  <div class="tab"     data-pg="avance" onclick="goTab(this)">⚡ Avance Turno</div>
+  <div class="tab"     data-pg="mermas" onclick="goTab(this)">⚠️ Mermas</div>
+  <div class="tab"     data-pg="pers" onclick="goTab(this)">👤 Personal</div>
+</nav>
+
+<!-- ═══ REGISTRAR ═══ -->
+<div class="pg on" id="pg-reg">
+  <div style="height:14px"></div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="st teal"><div class="v" id="s0">0</div><div class="l">Registros Hoy</div></div>
+    <div class="st blue"><div class="v" id="s1">0</div><div class="l">Rollos</div></div>
+    <div class="st">    <div class="v" id="s2">0</div><div class="l">KG</div></div>
+    <div class="st green"><div class="v" id="s3">0</div><div class="l">Completos</div></div>
+    <div class="st red"> <div class="v" id="s4">0</div><div class="l">Pendientes</div></div>
+  </div>
+
+  <!-- PASO 1 -->
+  <div class="card">
+    <div class="ch"><span class="n">1</span>Asistente · Maquinista · Máquina</div>
+    <div class="fg c3">
+      <div class="fl">
+        <label>Asistente (Encargado)</label>
+        <select id="f-asist">
+          <option value="">— Seleccionar —</option>
+        </select>
+      </div>
+      <div class="fl">
+        <label>Maquinista (Operario)</label>
+        <select id="f-maqsta">
+          <option value="">— Seleccionar —</option>
+          <option>ALDO TUANAMA</option><option>ALFONSO FLORES</option>
+          <option>ALFREDO IRARICA</option><option>ANGHELO HUAPAYA</option>
+          <option>ANIBAL BALDEON</option><option>BRAYAN VASQUEZ</option>
+          <option>CESAR SAYAS</option><option>CRISTHIAN TINEO</option>
+          <option>DANIEL ARCELA</option><option>DANIEL LLERENA</option>
+          <option>DIMAS MICHI</option><option>EDGAR HUAPAYA</option>
+          <option>EDGAR ONCEVAY</option><option>EFRAIN MEZA</option>
+          <option>ELMER TUANAMA</option><option>FASABI TULER</option>
+          <option>GILBERTO REATEGUI</option><option>IQUE MUÑOZ</option>
+          <option>JAIME BARRETO</option><option>JASSON CANTERO</option>
+          <option>JESSON BENITES</option><option>JHAN CASTILLON</option>
+          <option>JHAN MARCO</option><option>JHON CHERO</option>
+          <option>JHON COLALA</option><option>JHON CORDOVA</option>
+          <option>JIM MACEDO</option><option>JOAQUIN LA MADRID</option>
+          <option>JUAN CAMACHO</option><option>JUAN PEREYRA</option>
+          <option>JULIO SABOYA</option><option>LEONARD MACEDO</option>
+          <option>LEYSER HUACHO</option><option>MARCO ASPAJO</option>
+          <option>MARCO ZAMBRANO</option><option>MILTON VALLADARES</option>
+          <option>NARVIL TAPULLIMA</option><option>NELSON TACCO</option>
+          <option>PETER MORCERA</option><option>REIZER CRUZ ROSADO</option>
+          <option>RENZO OLAVARRIA</option><option>RUSBEL MUNGUIA</option>
+          <option>VICTOR SONCO</option><option>YONATON HUARIPAUCAR</option>
+        </select>
+      </div>
+      <div class="fl">
+        <label>Máquina</label>
+        <div class="maq-wrap">
+          <select id="f-maq" onchange="this.classList.toggle('sel',this.value!='')">
+            <option value="">Seleccionar...</option>
+            <option value="RB-1">Rebobinadora 1</option>
+            <option value="RB-2">Rosa 2</option>
+            <option value="RB-4">Rebobinadora 4</option>
+            <option value="RB-5">Rebobinadora 5</option>
+            <option value="RB-6">Rosa 6</option>
+            <option value="RB-9">Rebobinadora 9</option>
+            <option value="RB-10">Rebobinadora 10</option>
+            <option value="PE-7">Preestiradora 7</option>
+            <option value="PE-8">Preestiradora 8</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PASO 2 -->
+  <div class="card">
+    <div class="ch" style="justify-content:space-between">
+      <span style="display:flex;align-items:center;gap:8px">
+        <span class="n">2</span>Orden de Producción
+      </span>
+      <button onclick="cargarMPS(true)" style="background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.3);
+        color:var(--teal);padding:5px 12px;border-radius:6px;font-family:'Barlow Condensed',sans-serif;
+        font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer">
+        🔄 Actualizar OPs
+      </button>
+    </div>
+
+    <!-- GS STATUS -->
+    <div class="gs-bar">
+      <div class="gs-dot load" id="gs-dot"></div>
+      <span id="gs-msg" style="color:var(--mut2)">Conectando al MPS...</span>
+    </div>
+
+    <div class="fg c1" style="margin-bottom:10px">
+      <div class="fl">
+        <label>N° OP — escribe para buscar</label>
+        <div class="op-wrap">
+          <input type="text" id="f-op" placeholder="Ej: 82005"
+            autocomplete="off"
+            oninput="buscarOP(this.value)"
+            onblur="setTimeout(()=>document.getElementById('op-dd').classList.remove('on'),200)">
+          <div class="op-dd" id="op-dd"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel info OP (aparece al seleccionar) -->
+    <div class="op-panel" id="op-panel">
+      <div class="op-panel-title">📦 Datos del Pedido — MPS</div>
+      <div class="op-panel-grid">
+        <div class="op-kv"><span>N° Pedido</span><strong id="pi-ped">—</strong></div>
+        <div class="op-kv"><span>Cliente</span><strong id="pi-cli">—</strong></div>
+        <div class="op-kv"><span>Código</span><strong id="pi-cod">—</strong></div>
+        <div class="op-kv"><span>Rollos</span><strong id="pi-rol">—</strong></div>
+        <div class="op-kv"><span>Cajas</span><strong id="pi-caj">—</strong></div>
+        <div class="op-kv"><span>Tuco</span><strong id="pi-tuc">—</strong></div>
+      </div>
+      <div class="op-desc"><span>Descripción: </span><strong id="pi-desc">—</strong></div>
+      <div style="margin-top:4px;font-size:12px">
+        <span style="color:var(--mut2)">KG/rollo: </span>
+        <strong id="pi-kgr" style="color:var(--gold)">—</strong>
+        <span style="color:var(--mut2);margin-left:14px">KG Total pedido: </span>
+        <strong id="pi-kgt" style="color:var(--teal)">—</strong>
+      </div>
+    </div>
+
+    <!-- Campos ocultos con datos del MPS -->
+    <input type="hidden" id="h-ped">
+    <input type="hidden" id="h-cli">
+    <input type="hidden" id="h-cod">
+    <input type="hidden" id="h-desc">
+    <input type="hidden" id="h-rol">
+    <input type="hidden" id="h-caj">
+    <input type="hidden" id="h-tuc">
+    <input type="hidden" id="h-kgr">
+    <input type="hidden" id="h-kgt">
+    <input type="hidden" id="h-lote">
+  </div>
+
+  <!-- PASO 3 -->
+  <div class="card">
+    <div class="ch"><span class="n">3</span>Inicio de Producción</div>
+    <div class="fg c3">
+      <div class="fl">
+        <label>Turno (automático por hora)</label>
+        <div class="turno-disp" id="turno-disp">— Se asigna al iniciar —</div>
+      </div>
+      <div class="fl">
+        <label>Hora Inicio (automática)</label>
+        <input type="text" id="f-hinicio" readonly placeholder="— : —">
+      </div>
+      <div class="fl">
+        <label>Fecha (automática)</label>
+        <input type="text" id="f-fecha" readonly placeholder="—">
+      </div>
+    </div>
+    <button class="btn btn-go" id="btn-ini" onclick="iniciar()">
+      ▶ INICIAR PRODUCCIÓN — CAPTURA HORA AHORA
+    </button>
+  </div>
+
+  <!-- LIVE BANNER -->
+  <div class="live" id="live-banner">
+    <div class="live-dot"></div>
+    <div class="live-body">
+      <div class="live-title">⚡ Producción en Curso</div>
+      <div class="live-info" id="live-info"></div>
+    </div>
+  </div>
+
+  <!-- PASO 4: PARADA -->
+  <div class="card" id="card-stop" style="display:none">
+    <div class="ch red-h"><span class="n">4</span>Parada — ¿Cuánto avanzaste?</div>
+    <div class="fg c3">
+      <div class="fl">
+        <label>Hora Parada (automática)</label>
+        <input type="text" id="f-hfin" readonly placeholder="—">
+      </div>
+      <div class="fl">
+        <label>Tucos / Rollos producidos este turno</label>
+        <input type="number" id="f-prod" placeholder="0" min="0" oninput="recalc()">
+      </div>
+      <div class="fl">
+        <label>Producción anterior (acumulado)</label>
+        <input type="number" id="f-ant" placeholder="0" min="0" oninput="recalc()">
+      </div>
+    </div>
+
+    <div class="kpis">
+      <div class="kpi or"><div class="kv" id="k-rol">0</div><div class="kl">Rollos Prod.</div></div>
+      <div class="kpi">  <div class="kv" id="k-kg">0.00</div><div class="kl">KG Producidos</div></div>
+      <div class="kpi gr"><div class="kv" id="k-pct">0%</div><div class="kl">Avance Pedido</div></div>
+      <div class="kpi" id="k-estbox">
+        <div class="kv" id="k-est" style="font-size:14px;color:var(--mut)">—</div>
+        <div class="kl">Estado</div>
+      </div>
+    </div>
+
+    <div class="fg c3" style="margin-top:8px">
+      <div class="fl">
+        <label>Merma KG (opcional)</label>
+        <input type="number" id="f-mkg" placeholder="0.00" step="0.01" min="0">
+      </div>
+      <div class="fl">
+        <label>Tipo de Merma</label>
+        <select id="f-mtipo">
+          <option value="">— Sin merma —</option>
+          <option>Inicio de bobina</option>
+          <option>Fin de bobina</option>
+          <option>Rotura</option>
+          <option>Calibración</option>
+          <option>Cambio de producto</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="fl">
+        <label>Observación</label>
+        <input type="text" id="f-obs" placeholder="Incidencias, motivo parada...">
+      </div>
+    </div>
+    <button class="btn btn-stop" onclick="parar()">⏹ REGISTRAR PARADA Y GUARDAR</button>
+  </div>
+</div><!-- /pg-reg -->
+
+<!-- ═══ HISTORIAL ═══ -->
+<div class="pg" id="pg-hist">
+  <div style="height:14px"></div>
+  <div class="tbl-hdr">
+    <div class="tbl-label">Historial Completo</div>
+    <button class="btn-xl" onclick="exportarExcel()">⬇ Exportar Excel</button>
+  </div>
+  <div class="card" style="padding:12px 14px">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Mes</th><th>Encargado</th><th>Maq</th><th>Maquinista</th>
+          <th>Horario</th><th>TIPO</th><th>OP</th><th>LOTE</th><th>Codigo</th>
+          <th>Bobina</th><th>Descripción</th><th>Rollos</th><th>Cajas</th>
+          <th>PRD PARTES(kg)</th><th>Peso x Rollo</th><th>Med.Tuco</th>
+          <th>Merma nat.</th><th>Mot.Merma</th>
+          <th>HORAS</th><th>H.inicial</th><th>H.final</th><th></th>
+        </tr></thead>
+        <tbody id="hist-body"></tbody>
+      </table>
+      <div id="hist-empty" class="empty">Sin registros aún.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ AVANCE TURNO ═══ -->
+<div class="pg" id="pg-avance">
+  <div style="height:14px"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <div class="card" style="text-align:center">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mut2);margin-bottom:6px">☀️ TURNO DÍA</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--blue)" id="av-dia">0</div>
+      <div style="font-size:10px;color:var(--mut)">rollos producidos</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mut2);margin-bottom:6px">🌙 TURNO NOCHE</div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:44px;font-weight:900;color:var(--mut2)" id="av-noche">0</div>
+      <div style="font-size:10px;color:var(--mut)">rollos producidos</div>
+    </div>
+  </div>
+  <div class="card" style="padding:12px 14px">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Turno</th><th>OP</th><th>Descripción</th><th>Maquinista</th>
+          <th>Máquina</th><th>H.Inicio</th><th>H.Final</th>
+          <th class="td-n">Rollos</th><th class="td-n">KG</th><th>Estado</th>
+        </tr></thead>
+        <tbody id="av-body"></tbody>
+      </table>
+      <div id="av-empty" class="empty">Sin registros del día.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MERMAS ═══ -->
+<div class="pg" id="pg-mermas">
+  <div style="height:14px"></div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px">
+    <div class="card" style="text-align:center">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;color:var(--red)" id="m-kg">0</div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);margin-top:3px">KG Merma Hoy</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;color:var(--warn)" id="m-pct">0%</div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);margin-top:3px">% sobre KG producidos</div>
+    </div>
+    <div class="card" style="text-align:center">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:32px;font-weight:900;color:var(--gold)" id="m-regs">0</div>
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mut);margin-top:3px">Registros con merma</div>
+    </div>
+  </div>
+  <div class="card" style="padding:12px 14px">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Hora</th><th>OP</th><th>Maquinista</th><th class="td-n">KG Merma</th><th>Tipo</th><th>Observación</th></tr></thead>
+        <tbody id="mer-body"></tbody>
+      </table>
+      <div id="mer-empty" class="empty">Sin mermas hoy.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PERSONAL ═══ -->
+<div class="pg" id="pg-pers">
+  <div style="height:14px"></div>
+  <div class="card">
+    <div class="ch"><span class="n">A</span>Gestión de Asistentes</div>
+    <div id="asist-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+    <div class="fg c2">
+      <div class="fl">
+        <label>Agregar asistente</label>
+        <input type="text" id="new-asist" placeholder="Nombre completo"
+          onkeydown="if(event.key==='Enter')addAsist()">
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <button class="btn btn-go btn-sm" onclick="addAsist()">+ Agregar</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ch"><span class="n">R</span>Rendimiento Hoy</div>
+    <div id="pers-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div class="empty" style="grid-column:1/-1">Sin datos del día.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   CONFIGURACIÓN — URLs Google Sheets
+══════════════════════════════════════════ */
+const GS_MPS    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTvvkaJowutisF8bIVKtwU8dtlLCXElFKVLG3u4F_2A9jbWhVSZPlk2SYFwAPnONVwvFiHcvR1aq-8S/pub?gid=1003436557&single=true&output=csv';
+const GS_SCRIPT = 'https://script.google.com/macros/s/AKfycbyuzgdWxzUqGNb3MY3cPjmMGmvlS6OdYsBRFXlZX7a9xeZX8QAWDu066bHLQI-7tAJIPQ/exec';
+
+/* ══════════════════════════════════════════
+   OPs LOCAL (del MPS Excel)
+══════════════════════════════════════════ */
+let OPS_LOCAL = []
+
+/* ══════════════════════════════════════════
+   STATE
+══════════════════════════════════════════ */
+let opsGS    = JSON.parse(localStorage.getItem('reb5_gs_ops')||'[]');
+let registros= JSON.parse(localStorage.getItem('reb5_regs')||'[]');
+let asistentes=JSON.parse(localStorage.getItem('reb5_asist')||'["Frank Puma Ccallo","Mauricio Ávila"]');
+let sesion   = null;
+
+/* ══════════════════════════════════════════
+   RELOJ
+══════════════════════════════════════════ */
+function pad(n){return String(n).padStart(2,'0');}
+function hhmm(d){d=d||new Date();return pad(d.getHours())+':'+pad(d.getMinutes());}
+function hhmmss(d){d=d||new Date();return hhmm(d)+':'+pad(d.getSeconds());}
+function ddmmyyyy(d){d=d||new Date();return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear();}
+function mesNombre(d){
+  d=d||new Date();
+  return ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+          'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][d.getMonth()];
+}
+function turnoAuto(d){
+  d=d||new Date();
+  const h=d.getHours();
+  return (h>=7&&h<19)?'DIA':'NOCHE';
+}
+function diffHoras(ini,fin){
+  if(!ini||!fin) return '';
+  const [hi,mi]=ini.split(':').map(Number);
+  const [hf,mf]=fin.split(':').map(Number);
+  let diff=(hf*60+mf)-(hi*60+mi);
+  if(diff<0) diff+=1440;
+  return (diff/60).toFixed(2);
+}
+
+function tickClock(){
+  const n=new Date();
+  document.getElementById('clock').textContent=hhmmss(n);
+  const dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const mes=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  document.getElementById('fecha-txt').textContent=
+    dias[n.getDay()]+' '+n.getDate()+' '+mes[n.getMonth()]+' '+n.getFullYear();
+}
+setInterval(tickClock,1000); tickClock();
+
+/* ══════════════════════════════════════════
+   TABS
+══════════════════════════════════════════ */
+function goTab(el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.pg').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  const pg='pg-'+el.dataset.pg;
+  document.getElementById(pg).classList.add('on');
+  if(el.dataset.pg==='hist')   renderHist();
+  if(el.dataset.pg==='avance') renderAvance();
+  if(el.dataset.pg==='mermas') renderMermas();
+  if(el.dataset.pg==='pers')   renderPers();
+}
+
+/* ══════════════════════════════════════════
+   GOOGLE SHEETS — CARGAR OPs MPS
+══════════════════════════════════════════ */
+function parseCsv(line){
+  const r=[];let cur='',inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
+    else if(c===','&&!inQ){r.push(cur.trim());cur='';}
+    else cur+=c;
+  }
+  r.push(cur.trim());
+  return r;
+}
+
+function cargarMPS(manual){
+  setGS('load', manual ? 'Actualizando OPs del MPS...' : 'Cargando OPs del MPS...');
+
+  // Usar el Apps Script como proxy JSONP (evita CORS desde file://)
+  window._mpsCallback = function(data){
+    const tag = document.getElementById('_jsonp_mps');
+    if(tag) tag.remove();
+    if(data && data.ops && data.ops.length > 0){
+      OPS_LOCAL = data.ops;
+      localStorage.setItem('reb5_ops_cache', JSON.stringify(OPS_LOCAL));
+      localStorage.setItem('reb5_ops_ts', Date.now());
+      setGS('ok', OPS_LOCAL.length + ' OPs cargadas del MPS — última: ' + OPS_LOCAL[OPS_LOCAL.length-1].op);
+      if(manual) toast('✔ ' + OPS_LOCAL.length + ' OPs actualizadas del MPS', 'ok');
+    } else {
+      usarCache();
+    }
+  };
+
+  const s = document.createElement('script');
+  s.id = '_jsonp_mps';
+  s.src = GS_SCRIPT + '?action=getOps&callback=_mpsCallback';
+  s.onerror = function(){ s.remove(); usarCache(); };
+  document.head.appendChild(s);
+
+  // Timeout 10 segundos
+  setTimeout(function(){
+    if(document.getElementById('_jsonp_mps')){
+      document.getElementById('_jsonp_mps').remove();
+      usarCache();
+    }
+  }, 10000);
+}
+
+function usarCache(){
+  const cached = JSON.parse(localStorage.getItem('reb5_ops_cache') || '[]');
+  const ts     = parseInt(localStorage.getItem('reb5_ops_ts') || '0');
+  const mins   = Math.round((Date.now() - ts) / 60000);
+  if(cached.length > 0){
+    OPS_LOCAL = cached;
+    setGS('ok', OPS_LOCAL.length + ' OPs (caché ' + (mins < 60 ? mins+'m' : Math.round(mins/60)+'h') + ') — presiona 🔄 para actualizar');
+  } else {
+    setGS('err', 'Sin OPs — presiona 🔄 para conectar al MPS');
+  }
+}
+
+
+function setGS(tipo,msg){
+  const dot=document.getElementById('gs-dot');
+  const txt=document.getElementById('gs-msg');
+  dot.className='gs-dot'+(tipo?' '+tipo:'');
+  txt.textContent=msg;
+  txt.style.color=tipo==='ok'?'var(--teal)':tipo==='err'?'var(--red)':'var(--mut2)';
+}
+
+/* ══════════════════════════════════════════
+   BUSCAR OP
+══════════════════════════════════════════ */
+function todosOps(){
+  return OPS_LOCAL;
+}
+
+function buscarOP(q){
+  const dd=document.getElementById('op-dd');
+  const qt=q.trim();
+  if(qt.length<2){dd.classList.remove('on');return;}
+  const all=todosOps();
+  const res=all.filter(o=>
+    o.op.startsWith(qt)||
+    (o.pedido&&o.pedido.includes(qt))||
+    o.desc.toUpperCase().includes(qt.toUpperCase())
+  ).slice(0,12);
+  if(!res.length){
+    dd.innerHTML='<div class="no-op">No encontrado en el MPS</div>';
+    dd.classList.add('on');return;
+  }
+  dd.innerHTML=res.map((o,i)=>`
+    <div class="oi" onmousedown="selOP(${i},event)">
+      <div class="oi-top">OP ${o.op} &nbsp;|&nbsp; Pedido ${o.pedido||'—'}</div>
+      <div class="oi-sub">${o.cliente||''} — ${o.desc||''}</div>
+    </div>`).join('');
+  // Guardar en window para acceso por índice
+  window._opRes=res;
+  dd.classList.add('on');
+}
+
+function selOP(i,ev){
+  if(ev) ev.preventDefault();
+  const o=window._opRes[i];if(!o)return;
+  document.getElementById('f-op').value=o.op;
+  // Hidden fields
+  document.getElementById('h-ped').value =o.pedido||'';
+  document.getElementById('h-cli').value =o.cliente||'';
+  document.getElementById('h-cod').value =o.codigo||'';
+  document.getElementById('h-desc').value=o.desc||'';
+  document.getElementById('h-rol').value =(o.rol||o.rollos||0);
+  document.getElementById('h-caj').value =(o.caj||o.cajas||0);
+  document.getElementById('h-tuc').value =o.tuco||'';
+  document.getElementById('h-kgr').value =o.kgr||0;
+  const rol=parseInt(o.rol||o.rollos)||0;
+  const kgt=(rol*(o.kgr||0)).toFixed(2);
+  document.getElementById('h-kgt').value =kgt;
+  document.getElementById('h-lote').value='';
+  // Panel info
+  document.getElementById('pi-ped').textContent  =o.pedido||'—';
+  document.getElementById('pi-cli').textContent  =(o.cliente||'—').substring(0,30);
+  document.getElementById('pi-cod').textContent  =o.codigo||'—';
+  document.getElementById('pi-rol').textContent  =rol||'—';
+  document.getElementById('pi-caj').textContent  =(o.caj||o.cajas)||'—';
+  document.getElementById('pi-tuc').textContent  =o.tuco||'—';
+  document.getElementById('pi-desc').textContent =(o.desc||'—').substring(0,70);
+  document.getElementById('pi-kgr').textContent  =o.kgr?o.kgr+' KG':'—';
+  document.getElementById('pi-kgt').textContent  =kgt?kgt+' KG':'—';
+  document.getElementById('op-panel').classList.add('on');
+  document.getElementById('op-dd').classList.remove('on');
+  toast('✔ OP '+o.op+' cargada','ok');
+}
+
+/* ══════════════════════════════════════════
+   RECALC KPIs parada
+══════════════════════════════════════════ */
+function recalc(){
+  const prod=parseFloat(document.getElementById('f-prod').value)||0;
+  const ant =parseFloat(document.getElementById('f-ant').value)||0;
+  const kgr =parseFloat(document.getElementById('h-kgr').value)||0;
+  const rol =parseFloat(document.getElementById('h-rol').value)||0;
+  const kg  =(prod*kgr).toFixed(2);
+  const pct =rol>0?Math.round(((prod+ant)/rol)*100):0;
+  const pend=Math.max(0,rol-prod-ant);
+  document.getElementById('k-rol').textContent=prod;
+  document.getElementById('k-kg').textContent =kg;
+  document.getElementById('k-pct').textContent=pct+'%';
+  const est=document.getElementById('k-est');
+  const box=document.getElementById('k-estbox');
+  if(!prod){est.textContent='—';est.style.color='var(--mut)';box.style.borderColor='';}
+  else if(pend<=0){est.textContent='COMPLETO';est.style.color='var(--green)';box.style.borderColor='var(--green)';}
+  else{est.textContent='PENDIENTE';est.style.color='var(--warn)';box.style.borderColor='var(--warn)';}
+}
+
+/* ══════════════════════════════════════════
+   INICIAR
+══════════════════════════════════════════ */
+function iniciar(){
+  const maq =document.getElementById('f-maq').value;
+  const asist=document.getElementById('f-asist').value;
+  const mqsta=document.getElementById('f-maqsta').value;
+  const op  =document.getElementById('f-op').value.trim();
+  if(!asist){toast('Selecciona el asistente','warn');return;}
+  if(!maq)  {toast('Selecciona la máquina','warn');return;}
+  if(!op)   {toast('Ingresa el N° de OP','warn');return;}
+
+  const now=new Date();
+  const turno=turnoAuto(now);
+  const hinicio=hhmm(now);
+  const fecha=ddmmyyyy(now);
+
+  // Actualizar UI
+  document.getElementById('f-hinicio').value=hinicio;
+  document.getElementById('f-fecha').value  =fecha;
+  const td=document.getElementById('turno-disp');
+  td.textContent=(turno==='DIA'?'☀️ DÍA':'🌙 NOCHE')+' — inicio '+hinicio;
+  td.className='turno-disp '+(turno==='DIA'?'dia':'noche');
+
+  sesion={
+    maq,asist,mqsta,op,turno,hinicio,fecha,
+    mes: mesNombre(now),
+    pedido: document.getElementById('h-ped').value,
+    cliente:document.getElementById('h-cli').value,
+    codigo: document.getElementById('h-cod').value,
+    desc:   document.getElementById('h-desc').value,
+    rol:    parseInt(document.getElementById('h-rol').value)||0,
+    caj:    parseInt(document.getElementById('h-caj').value)||0,
+    tuco:   document.getElementById('h-tuc').value,
+    kgr:    parseFloat(document.getElementById('h-kgr').value)||0,
+    kgt:    document.getElementById('h-kgt').value,
+    lote:   document.getElementById('h-lote').value,
+  };
+
+  document.getElementById('live-banner').classList.add('on');
+  document.getElementById('live-info').innerHTML=
+    `<span>Máq: <strong>${sesion.maq}</strong></span>
+     <span>OP: <strong>${sesion.op}</strong></span>
+     <span>Pedido: <strong>${sesion.pedido||'—'}</strong></span>
+     <span>Inicio: <strong>${sesion.hinicio}</strong></span>
+     <span>Turno: <strong>${sesion.turno}</strong></span>
+     <span>Asistente: <strong>${sesion.asist}</strong></span>
+     <span>Maquinista: <strong>${sesion.mqsta||'—'}</strong></span>`;
+  document.getElementById('btn-ini').disabled=true;
+  document.getElementById('card-stop').style.display='block';
+  toast('▶ Iniciado — '+hinicio,'ok');
+  setTimeout(()=>document.getElementById('card-stop').scrollIntoView({behavior:'smooth',block:'start'}),200);
+}
+
+/* ══════════════════════════════════════════
+   PARAR
+══════════════════════════════════════════ */
+function parar(){
+  if(!sesion){toast('No hay producción iniciada','warn');return;}
+  const prod=parseFloat(document.getElementById('f-prod').value)||0;
+  if(!prod){toast('Ingresa los rollos/tucos producidos','warn');return;}
+
+  const now   =new Date();
+  const hfin  =hhmm(now);
+  document.getElementById('f-hfin').value=hfin;
+
+  const ant   =parseFloat(document.getElementById('f-ant').value)||0;
+  const kg    =(prod*sesion.kgr).toFixed(2);
+  const pend  =Math.max(0,sesion.rol-prod-ant);
+  const estado=pend<=0?'COMPLETO':'PENDIENTE';
+  const mkg   =parseFloat(document.getElementById('f-mkg').value)||0;
+  const mtipo =document.getElementById('f-mtipo').value;
+  const obs   =document.getElementById('f-obs').value.trim();
+  const horas =diffHoras(sesion.hinicio,hfin);
+
+  const rec={
+    id:Date.now(),
+    fecha:sesion.fecha, mes:sesion.mes,
+    encargado:sesion.asist, maq:sesion.maq, maquinista:sesion.mqsta,
+    turno:sesion.turno, tipo:'',
+    op:sesion.op, lote:sesion.lote,
+    codigo:sesion.codigo, bobina:'',
+    desc:sesion.desc,
+    rollos:sesion.rol, cajas:sesion.caj,
+    kgPartes:parseFloat(kg),
+    kgRollo:sesion.kgr,
+    tuco:sesion.tuco, pesoTuco:'',
+    color:'',
+    mermaNat:mkg, mermaCol:0, motivoMer:mtipo,
+    tInsrv:0, tReutil:0,
+    horas, hinicio:sesion.hinicio, hfin,
+    velocidad:'', rollosCI:'',
+    // Extra para filtros
+    rollProd:prod, prodAnt:ant, pendiente:pend, estado,
+    cliente:sesion.cliente, pedido:sesion.pedido, obs
+  };
+
+  registros.unshift(rec);
+  localStorage.setItem('reb5_regs',JSON.stringify(registros));
+  updateStats();
+  enviarGS(rec);
+  toast('⏹ Guardado — '+hfin,'ok');
+  reset();
+}
+
+/* ══════════════════════════════════════════
+   ENVIAR A GOOGLE SHEETS
+══════════════════════════════════════════ */
+function enviarGS(rec){
+  const fd=new FormData();
+  // 29 columnas en el mismo orden que la hoja REBOBINADO
+  const campos={
+    fechaProd:rec.fecha, mes:rec.mes, asistente:rec.encargado,
+    maquina:rec.maq, operador:rec.maquinista, turno:rec.turno,
+    tipo:rec.tipo||'', op:rec.op, lote:rec.lote||'',
+    codigo:rec.codigo||'', bobina:rec.bobina||'',
+    desc:rec.desc||'', rollos:rec.rollos||0, cajas:rec.cajas||0,
+    kg:rec.kgPartes||0, kgr:rec.kgRollo||0,
+    tuco:rec.tuco||'', pesoTuco:'', color:'',
+    mernaNat:rec.mermaNat||0, mernaCol:0,
+    motivoMer:rec.motivoMer||'', tInsrv:0, tReutil:0,
+    horas:rec.horas||'', hInicio:rec.hinicio||'',
+    hFinal:rec.hfin||'', velocidad:'', rollosCI:''
+  };
+  Object.entries(campos).forEach(([k,v])=>fd.append(k,v));
+  fetch(GS_SCRIPT,{method:'POST',mode:'no-cors',body:fd})
+    .then(()=>toast('☁ Enviado a Google Sheets','ok'))
+    .catch(()=>toast('⚠ Guardado local — sin conexión','warn'));
+}
+
+/* ══════════════════════════════════════════
+   RESET
+══════════════════════════════════════════ */
+function reset(){
+  sesion=null;
+  document.getElementById('live-banner').classList.remove('on');
+  document.getElementById('card-stop').style.display='none';
+  document.getElementById('btn-ini').disabled=false;
+  document.getElementById('op-panel').classList.remove('on');
+  ['f-op','f-hinicio','f-fecha','f-hfin','f-prod','f-ant','f-obs','f-mkg'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  ['h-ped','h-cli','h-cod','h-desc','h-rol','h-caj','h-tuc','h-kgr','h-kgt','h-lote'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  document.getElementById('f-maq').value='';
+  document.getElementById('f-maq').classList.remove('sel');
+  document.getElementById('f-asist').value='';
+  document.getElementById('f-maqsta').value='';
+  document.getElementById('f-mtipo').selectedIndex=0;
+  const td=document.getElementById('turno-disp');
+  td.textContent='— Se asigna al iniciar —';
+  td.className='turno-disp';
+  ['k-rol','k-kg','k-pct'].forEach(id=>document.getElementById(id).textContent=id==='k-kg'?'0.00':'0');
+  document.getElementById('k-est').textContent='—';
+  document.getElementById('k-est').style.color='var(--mut)';
+  document.getElementById('k-estbox').style.borderColor='';
+}
+
+/* ══════════════════════════════════════════
+   STATS
+══════════════════════════════════════════ */
+function updateStats(){
+  const hoy=ddmmyyyy();
+  const r=registros.filter(x=>x.fecha===hoy);
+  document.getElementById('s0').textContent=r.length;
+  document.getElementById('s1').textContent=r.reduce((a,x)=>a+(x.rollProd||0),0);
+  document.getElementById('s2').textContent=r.reduce((a,x)=>a+parseFloat(x.kgPartes||0),0).toFixed(0);
+  document.getElementById('s3').textContent=r.filter(x=>x.estado==='COMPLETO').length;
+  document.getElementById('s4').textContent=r.filter(x=>x.estado==='PENDIENTE').length;
+}
+
+/* ══════════════════════════════════════════
+   HISTORIAL
+══════════════════════════════════════════ */
+function renderHist(){
+  const tbody=document.getElementById('hist-body');
+  const empty=document.getElementById('hist-empty');
+  empty.style.display=registros.length?'none':'block';
+  const tC={'DIA':'b-dia','NOCHE':'b-noche'};
+  tbody.innerHTML=registros.map(x=>`<tr>
+    <td>${x.fecha}</td>
+    <td class="td-s">${x.mes||''}</td>
+    <td class="td-s">${x.encargado||'—'}</td>
+    <td class="td-s">${x.maq||'—'}</td>
+    <td class="td-s">${x.maquinista||'—'}</td>
+    <td><span class="bdg ${tC[x.turno]||'b-dia'}">${x.turno||'—'}</span></td>
+    <td class="td-s">${x.tipo||''}</td>
+    <td class="td-op">${x.op||'—'}</td>
+    <td class="td-s">${x.lote||''}</td>
+    <td class="td-s">${x.codigo||'—'}</td>
+    <td class="td-s">${x.bobina||''}</td>
+    <td class="td-desc td-s" title="${x.desc||''}">${(x.desc||'—').substring(0,35)}…</td>
+    <td class="td-n">${x.rollos||0}</td>
+    <td class="td-n">${x.cajas||0}</td>
+    <td class="td-n td-teal">${x.kgPartes||0}</td>
+    <td class="td-n">${x.kgRollo||0}</td>
+    <td class="td-s">${x.tuco||'—'}</td>
+    <td class="td-n" style="color:var(--red)">${x.mermaNat||0}</td>
+    <td class="td-s">${x.motivoMer||''}</td>
+    <td class="td-n">${x.horas||''}</td>
+    <td class="td-s">${x.hinicio||'—'}</td>
+    <td class="td-s">${x.hfin||'—'}</td>
+    <td><button class="btn-del" onclick="delReg(${x.id})">✕</button></td>
+  </tr>`).join('');
+}
+
+function delReg(id){
+  if(!confirm('¿Eliminar?'))return;
+  registros=registros.filter(x=>x.id!==id);
+  localStorage.setItem('reb5_regs',JSON.stringify(registros));
+  renderHist(); updateStats();
+}
+
+/* ══════════════════════════════════════════
+   AVANCE POR TURNO
+══════════════════════════════════════════ */
+function renderAvance(){
+  const hoy=ddmmyyyy();
+  const r=registros.filter(x=>x.fecha===hoy);
+  document.getElementById('av-dia').textContent  =r.filter(x=>x.turno==='DIA').reduce((a,x)=>a+(x.rollProd||0),0);
+  document.getElementById('av-noche').textContent=r.filter(x=>x.turno==='NOCHE').reduce((a,x)=>a+(x.rollProd||0),0);
+  const tbody=document.getElementById('av-body');
+  document.getElementById('av-empty').style.display=r.length?'none':'block';
+  const tC={'DIA':'b-dia','NOCHE':'b-noche'};
+  tbody.innerHTML=r.map(x=>`<tr>
+    <td><span class="bdg ${tC[x.turno]||'b-dia'}">${x.turno}</span></td>
+    <td class="td-op">${x.op||'—'}</td>
+    <td class="td-desc td-s" title="${x.desc||''}">${(x.desc||'—').substring(0,35)}…</td>
+    <td class="td-s">${x.maquinista||'—'}</td>
+    <td class="td-s">${x.maq||'—'}</td>
+    <td class="td-s">${x.hinicio||'—'}</td>
+    <td class="td-s">${x.hfin||'—'}</td>
+    <td class="td-n td-hl">${x.rollProd||0}</td>
+    <td class="td-n">${x.kgPartes||0}</td>
+    <td><span class="bdg ${x.estado==='COMPLETO'?'b-ok':'b-pend'}">${x.estado||'—'}</span></td>
+  </tr>`).join('');
+}
+
+/* ══════════════════════════════════════════
+   MERMAS
+══════════════════════════════════════════ */
+function renderMermas(){
+  const hoy=ddmmyyyy();
+  const r=registros.filter(x=>x.fecha===hoy&&x.mermaNat>0);
+  const total=r.reduce((a,x)=>a+parseFloat(x.mermaNat||0),0);
+  const kgProd=parseFloat(document.getElementById('s2').textContent)||0;
+  document.getElementById('m-kg').textContent  =total.toFixed(2);
+  document.getElementById('m-pct').textContent =kgProd>0?(total/kgProd*100).toFixed(1)+'%':'0%';
+  document.getElementById('m-regs').textContent=r.length;
+  const tbody=document.getElementById('mer-body');
+  document.getElementById('mer-empty').style.display=r.length?'none':'block';
+  tbody.innerHTML=r.map(x=>`<tr>
+    <td class="td-s">${x.hfin||'—'}</td>
+    <td class="td-op">${x.op||'—'}</td>
+    <td class="td-s">${x.maquinista||'—'}</td>
+    <td class="td-n" style="color:var(--red)">${x.mermaNat} KG</td>
+    <td class="td-s">${x.motivoMer||'—'}</td>
+    <td class="td-s">${x.obs||'—'}</td>
+  </tr>`).join('');
+}
+
+/* ══════════════════════════════════════════
+   PERSONAL
+══════════════════════════════════════════ */
+function renderPers(){
+  renderAsistentes();
+  const hoy=ddmmyyyy();
+  const r=registros.filter(x=>x.fecha===hoy&&x.encargado);
+  const map={};
+  r.forEach(x=>{
+    if(!map[x.encargado])map[x.encargado]={nombre:x.encargado,rol:0,kg:0,regs:0,comp:0};
+    map[x.encargado].rol+=x.rollProd||0;
+    map[x.encargado].kg +=parseFloat(x.kgPartes||0);
+    map[x.encargado].regs++;
+    if(x.estado==='COMPLETO')map[x.encargado].comp++;
+  });
+  const grid=document.getElementById('pers-grid');
+  const arr=Object.values(map);
+  if(!arr.length){
+    grid.innerHTML='<div class="empty" style="grid-column:1/-1">Sin datos del día.</div>';return;
+  }
+  grid.innerHTML=arr.map(p=>`
+    <div class="card" style="padding:14px">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;margin-bottom:3px">👤 ${p.nombre}</div>
+      <div style="font-size:11px;color:var(--mut2);margin-bottom:10px">${p.regs} registro(s) hoy</div>
+      <div style="display:flex;gap:16px">
+        <div><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--gold)">${p.rol}</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mut)">Rollos</div></div>
+        <div><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--teal)">${p.kg.toFixed(0)}</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mut)">KG</div></div>
+        <div><div style="font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:900;color:var(--green)">${p.comp}</div><div style="font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--mut)">Completos</div></div>
+      </div>
+    </div>`).join('');
+}
+
+/* ══════════════════════════════════════════
+   ASISTENTES
+══════════════════════════════════════════ */
+function renderAsistentes(){
+  const sel=document.getElementById('f-asist');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Seleccionar —</option>'+
+    asistentes.map(a=>`<option ${a===cur?'selected':''}>${a}</option>`).join('');
+  const chips=document.getElementById('asist-chips');
+  if(chips) chips.innerHTML=asistentes.map(a=>`
+    <div style="background:var(--sur);border:1px solid var(--bor);border-radius:20px;
+      padding:5px 12px;font-size:12px;color:var(--txt);display:inline-flex;align-items:center;gap:6px">
+      👤 ${a}
+      <button onclick="delAsist('${a}')" style="background:none;border:none;color:var(--mut);
+        cursor:pointer;font-size:12px">✕</button>
+    </div>`).join('');
+}
+function addAsist(){
+  const inp=document.getElementById('new-asist');
+  const n=inp.value.trim();
+  if(!n||asistentes.includes(n)){toast('Nombre vacío o ya existe','warn');return;}
+  asistentes.push(n);
+  localStorage.setItem('reb5_asist',JSON.stringify(asistentes));
+  inp.value='';renderAsistentes();
+}
+function delAsist(n){
+  asistentes=asistentes.filter(a=>a!==n);
+  localStorage.setItem('reb5_asist',JSON.stringify(asistentes));
+  renderAsistentes();
+}
+
+/* ══════════════════════════════════════════
+   EXPORTAR EXCEL
+══════════════════════════════════════════ */
+function exportarExcel(){
+  if(!registros.length){toast('Sin registros','warn');return;}
+  if(typeof XLSX==='undefined'){toast('Cargando... intenta de nuevo','warn');return;}
+  const filas=registros.map(x=>({
+    'Fecha':x.fecha||'', 'Mes':x.mes||'',
+    'Encargado':x.encargado||'', 'Maq':x.maq||'', 'Maquinista':x.maquinista||'',
+    'Horario':x.turno||'', 'TIPO':x.tipo||'',
+    'OP':x.op||'', 'LOTE':x.lote||'', 'Codigo':x.codigo||'', 'Bobina':x.bobina||'',
+    'Descripción':x.desc||'',
+    'Rollos':x.rollos||0, 'Cajas':x.cajas||0,
+    'PRD PARTES (kg)':x.kgPartes||0, 'Peso x Rollo':x.kgRollo||0,
+    'Medida de Tuco':x.tuco||'', 'Peso de Tuco':x.pesoTuco||'', 'COLOR':x.color||'',
+    'Merma natural':x.mermaNat||0, 'Merma color':0,
+    'Motivo merma':x.motivoMer||'', 'T. inservible':0, 'T. reutilizable':0,
+    'HORAS':x.horas||'', 'H. inicial':x.hinicio||'', 'H. final':x.hfin||'',
+    'VELOCIDAD':'', 'ROLLOS CI (KG)':''
+  }));
+  const ws=XLSX.utils.json_to_sheet(filas);
+  ws['!cols']=[
+    {wch:12},{wch:10},{wch:18},{wch:8},{wch:20},{wch:8},{wch:6},
+    {wch:8},{wch:8},{wch:10},{wch:8},{wch:38},{wch:8},{wch:6},
+    {wch:14},{wch:12},{wch:12},{wch:10},{wch:8},
+    {wch:12},{wch:10},{wch:14},{wch:10},{wch:12},
+    {wch:6},{wch:10},{wch:10},{wch:10},{wch:12}
+  ];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'REBOBINADO');
+  XLSX.writeFile(wb,'Rebobinado_'+ddmmyyyy().replace(/\//g,'-')+'.xlsx');
+  toast('✔ Excel descargado','ok');
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════ */
+function toast(msg,tipo){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='t-'+(tipo||'ok');
+  t.style.display='block';clearTimeout(t._t);
+  t._t=setTimeout(()=>{t.style.display='none';},3000);
+}
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+renderAsistentes();
+updateStats();
+// Cargar cache inmediatamente para que el buscador funcione offline
+const _cache = JSON.parse(localStorage.getItem('reb5_ops_cache') || '[]');
+if(_cache.length > 0){
+  OPS_LOCAL = _cache;
+  const _ts = parseInt(localStorage.getItem('reb5_ops_ts') || '0');
+  const _mins = Math.round((Date.now() - _ts) / 60000);
+  setGS('ok', OPS_LOCAL.length + ' OPs (caché ' + (_mins < 60 ? _mins+'m' : Math.round(_mins/60)+'h') + ') — actualizando...');
+}
+// Luego intentar conectar al MPS para actualizar
+cargarMPS(false);
+</script>
+</body>
+</html>
