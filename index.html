@@ -576,7 +576,7 @@ tbody td{padding:7px 8px;white-space:nowrap;}
    CONFIGURACIÓN — URLs Google Sheets
 ══════════════════════════════════════════ */
 const GS_MPS    = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTvvkaJowutisF8bIVKtwU8dtlLCXElFKVLG3u4F_2A9jbWhVSZPlk2SYFwAPnONVwvFiHcvR1aq-8S/pub?gid=1003436557&single=true&output=csv';
-const GS_SCRIPT = 'https://script.google.com/macros/s/AKfycbyuzgdWxzUqGNb3MY3cPjmMGmvlS6OdYsBRFXlZX7a9xeZX8QAWDu066bHLQI-7tAJIPQ/exec';
+const GS_SCRIPT = 'https://script.google.com/macros/s/AKfycbw75p8pbn4KqP6XJGr6E9JxchlZ2F7kHVliY5Z1YUBGI2DmwGoapjFG-7UJjg4uNZnEew/exec';
 
 /* ══════════════════════════════════════════
    OPs LOCAL (del MPS Excel)
@@ -658,37 +658,31 @@ function parseCsv(line){
 }
 
 function cargarMPS(manual){
-  setGS('load', manual ? 'Actualizando OPs del MPS...' : 'Cargando OPs del MPS...');
-
-  // Usar el Apps Script como proxy JSONP (evita CORS desde file://)
+  setGS('load', manual?'Actualizando OPs...':'Cargando OPs del MPS...');
   window._mpsCallback = function(data){
-    const tag = document.getElementById('_jsonp_mps');
+    const tag=document.getElementById('_jsonp_tag');
     if(tag) tag.remove();
-    if(data && data.ops && data.ops.length > 0){
-      OPS_LOCAL = data.ops;
-      localStorage.setItem('reb5_ops_cache', JSON.stringify(OPS_LOCAL));
-      localStorage.setItem('reb5_ops_ts', Date.now());
-      setGS('ok', OPS_LOCAL.length + ' OPs cargadas del MPS — última: ' + OPS_LOCAL[OPS_LOCAL.length-1].op);
-      if(manual) toast('✔ ' + OPS_LOCAL.length + ' OPs actualizadas del MPS', 'ok');
-    } else {
-      usarCache();
-    }
+    if(data&&data.ops&&data.ops.length){
+      OPS_LOCAL=data.ops;
+      localStorage.setItem('reb5_ops_cache',JSON.stringify(OPS_LOCAL));
+      localStorage.setItem('reb5_ops_ts',Date.now());
+      setGS('ok',OPS_LOCAL.length+' OPs cargadas — última: '+OPS_LOCAL[OPS_LOCAL.length-1].op);
+      if(manual) toast('✔ '+OPS_LOCAL.length+' OPs actualizadas','ok');
+    } else { usarCache(); }
   };
-
-  const s = document.createElement('script');
-  s.id = '_jsonp_mps';
-  s.src = GS_SCRIPT + '?action=getOps&callback=_mpsCallback';
-  s.onerror = function(){ s.remove(); usarCache(); };
+  const s=document.createElement('script');
+  s.id='_jsonp_tag';
+  s.src=GS_SCRIPT+'?action=getOps&callback=_mpsCallback';
+  s.onerror=function(){s.remove();usarCache();};
   document.head.appendChild(s);
-
-  // Timeout 10 segundos
   setTimeout(function(){
-    if(document.getElementById('_jsonp_mps')){
-      document.getElementById('_jsonp_mps').remove();
+    if(document.getElementById('_jsonp_tag')){
+      document.getElementById('_jsonp_tag').remove();
       usarCache();
     }
-  }, 10000);
+  },10000);
 }
+
 
 function usarCache(){
   const cached = JSON.parse(localStorage.getItem('reb5_ops_cache') || '[]');
